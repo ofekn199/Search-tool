@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="he">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IP Search Tool</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    /* עיצוב העמוד */
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      font-family: 'Roboto', sans-serif;
+      background: linear-gradient(135deg, #f0f4f8, #cfd8dc);
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      transition: background 0.5s ease;
+    }
+
+    h1 {
+      text-align: center;
+      margin-top: 20px;
+      font-size: 2.5em;
+      color: #333;
+    }
+
+    table {
+      width: 100%;
+      max-width: 800px;
+      border-collapse: collapse;
+      margin-top: 20px;
+      background-color: #fff;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      border-radius: 8px;
+      overflow: hidden;
+      transform: translateY(20px);
+      opacity: 0;
+      animation: fadeInUp 0.8s ease forwards;
+    }
+
+    th, td {
+      padding: 12px;
+      text-align: left;
+      border-right: 1px solid #e0e0e0;
+    }
+
+    th {
+      background-color: #4a90e2;
+      color: #fff;
+      font-weight: bold;
+      border-bottom: 2px solid #4a90e2;
+    }
+
+    td {
+      border-bottom: 1px solid #e0e0e0;
+    }
+
+    tr:hover td {
+      background-color: #f5f5f5;
+    }
+
+    #controls {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-top: 20px;
+      width: 100%;
+      max-width: 800px;
+    }
+
+    #searchInput {
+      padding: 12px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      width: 100%;
+      max-width: 300px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      font-size: 1em;
+      transition: box-shadow 0.3s ease;
+    }
+
+    #searchInput:focus {
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    #searchButton, #saveButton {
+      margin-top: 10px;
+      padding: 12px 20px;
+      font-size: 1em;
+      color: #fff;
+      background: linear-gradient(45deg, #4a90e2, #357ab7);
+      border: none;
+      border-radius: 50px;
+      cursor: pointer;
+      transition: background 0.3s ease, transform 0.2s ease;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    #searchButton:hover, #saveButton:hover {
+      background: linear-gradient(45deg, #357ab7, #4a90e2);
+      transform: scale(1.05);
+    }
+
+    @keyframes fadeInUp {
+      0% {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
+</head>
+<body>
+<h1>IP Search Tool</h1>
+
+<div id="controls">
+  <input type="file" id="fileInput" accept=".csv, .xlsx" />
+  <input type="text" id="searchInput" placeholder="Search here..." />
+  <button id="searchButton" onclick="searchTable()">Search!</button>
+  <button id="saveButton" onclick="saveTable()">Save Changes</button>
+</div>
+
+<table id="csvTable">
+  <thead></thead>
+  <tbody></tbody>
+</table>
+
+<script>
+  document.getElementById('fileInput').addEventListener('change', function(event) {
+    const file = event.target.files[0];
+    if (file) {
+      const fileExtension = file.name.split('.').pop().toLowerCase();
+      if (fileExtension === 'csv') {
+        readCSVFile(file);
+      } else if (fileExtension === 'xlsx') {
+        readXLSXFile(file);
+      }
+    }
+  });
+
+  // ביצוע חיפוש בלחיצה על Enter
+  document.getElementById('searchInput').addEventListener('keypress', function(event) {
+    if (event.key === 'Enter') {
+      searchTable();
+    }
+  });
+
+  function readCSVFile(file) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const text = e.target.result;
+      displayData(text.split("\n").map(row => row.split(",")));
+    };
+    reader.readAsText(file);
+  }
+
+  function readXLSXFile(file) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const data = new Uint8Array(e.target.result);
+      const workbook = XLSX.read(data, { type: 'array' });
+      const firstSheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[firstSheetName];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+      displayData(jsonData);
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  function displayData(rows) {
+    const table = document.getElementById("csvTable");
+    const thead = table.querySelector("thead");
+    const tbody = table.querySelector("tbody");
+
+    thead.innerHTML = "";
+    tbody.innerHTML = "";
+
+    const headerRow = document.createElement("tr");
+    rows[0].forEach(header => {
+      const th = document.createElement("th");
+      th.textContent = header;
+      headerRow.appendChild(th);
+    });
+    thead.appendChild(headerRow);
+
+    rows.slice(1).forEach(row => {
+      const tr = document.createElement("tr");
+      row.forEach(cell => {
+        const td = document.createElement("td");
+        td.textContent = cell;
+        td.contentEditable = true;  // הפיכת התא לניתן לעריכה
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+  }
+
+  function searchTable() {
+    const input = document.getElementById("searchInput").value.toLowerCase();
+    const rows = document.querySelectorAll("#csvTable tbody tr");
+
+    rows.forEach(row => {
+      const cells = Array.from(row.getElementsByTagName("td"));
+      const match = cells.some(cell => cell.textContent.toLowerCase().includes(input));
+      row.style.display = match || input === "" ? "" : "none";
+    });
+  }
+
+  function saveTable() {
+    const table = document.getElementById("csvTable");
+    const rows = Array.from(table.querySelectorAll("tr"));
+    const csvData = rows.map(row => {
+      const cells = Array.from(row.querySelectorAll("th, td"));
+      return cells.map(cell => cell.textContent).join(",");
+    }).join("\n");
+
+    const blob = new Blob([csvData], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "updated_data.csv";
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+</script>
+</body>
+<footer>
+  <p>Create by Ofek Nagauker</p>
+</footer>
+</html>
